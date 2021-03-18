@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Minneapolis Police Incident Analysis</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+  <link rel="stylesheet" href="reset.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <nav class="navbar navbar-expand-lg navbar-custom">
+    <a class="navbar-brand" href="index.html">Minneapolis Police Incident Analysis</a>   
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+    </button>   
+
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto">    
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            Links
+          </a>
+          <div class="dropdown-menu dropdown-menu-right" aria-labelledby="navbarDropdown">
+            <a class="dropdown-item" href="index.html">Incident Dashboard</a>
+            <a class="dropdown-item" href="models.html">Weekly Models</a>
+            <a class="dropdown-item" href="RandomForest.html">Incident RF</a>
+            <a class="dropdown-item" href="rf_neighborhood.html">Neighborhood RF</a>
+            <a class="dropdown-item" href="geoMpls.html">Cluster Map Analysis</a>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </nav>
+  <div class="container">
+    <div class="row">
+      <div class="col-md-12">
+        <br><br>
+       <h1>Time-series modeling for predictions</h1>
+       <p class="tab">We used two methods that are designed to predict values from time-series data - <a href="https://machinelearningmastery.com/moving-average-smoothing-for-time-series-forecasting-python/">
+        simple moving average</a>, and an open-source library originally developed by facebook called <a href="https://facebook.github.io/prophet/">Prophet</a>. For this analysis we chose to use weekly incident 
+        counts to get an idea about what seasonal trends may look like; both methods could be applied to daily data in order to develop a shorter-term forecasting tool for regular use.
+       </p>
+       <br>
+       <br><br>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-12"><h1>Simple Moving Average</h1>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-6">
+        <br><br>
+        <p class="tab">The first model uses a simple moving average (SMA) calculation to evaluate the data from 2010-2019 
+          then predicts counts by week for 2020. The graph at right shows how the predictions tracked versus the actual 
+          crime counts by week for 2020. The reason for the drop off at the end of the chart for 'Actual' is because of the way 
+          week of the year is calculated using Python datetime; a few days at the end of each year get put into a week 53. The 
+          model run with the full dataset scored a root mean square error (RMSE) of 80.695.
+        </p><br>
+        <p class="tab">Since the 53rd week was not consistent from year-to-year in the number of days measured or number of incidents, we decided to remove all week 
+          53s from the dataset and run the model again. The graphs below show how this changed the training data. The full dataset 
+          is on the left, and the 52-week only (364-day years) data is on the right.
+        </p>
+      </div>
+      <div class="col-md-6">
+        <img src='models/images/weekly53_pred.png' alt="Simple moving average prediction on full data set">
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-6">
+        <img src='models/images/weekly53_history.png' alt="Weekly history - 53 weeks">
+      </div>
+      <div class="col-md-6">
+        <img src='models/images/weekly52_history.png' alt="Weekly history - 52 weeks">
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-6">
+        <br><br>
+        <p class="tab">This graph shows the actual incident count versus predicted for a consistent 52-week data set covering 2020. Running 
+          the model on this data resulted in a much better fit with a RMSE score of 62.212 (18.483 better than the initial predictions).
+        </p>
+      </div>
+      <div class="col-md-6">
+        <img src='models/images/weekly52_pred.png' alt="Simple moving average prediction">
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-4">
+        <br>
+        <p class="tab">SMA can also be applied to a subset of the data to make more targeted predictions, either by neighborhood or by offense. 
+          This information could be used to plan patrols, public outreach/awareness, etc. in an effort to reduce crime in a targeted fashion.
+        </p>
+      </div>
+      <div class="col-md-4">
+        <img src='models/images/nhood_ex.png' alt="Neighborhood prediction" width="350">
+      </div>
+      <div class="col-md-4">
+        <img src='models/images/offense2_ex.png' alt="Offense prediction" width="350">
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-12"><h1>Prophet</h1>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-6">
+        <p class="tab">Prophet is built for forecasting time-series data that has strong trends (daily/weekly/monthly/yearly/seasonally).
+          It also takes into account possible missing data or outliers when it applies forecasts. Models are fit using <a href="https://mc-stan.org/">Stan</a> 
+          which is a platform for statistical modeling and computation.
+        </p>
+        <br>
+        <p class="tab">Prophet is built to take an entire data set, implement a train/test split, and then generate a forecast from the 
+          model results. We used an 80/20 split, and set the forecast length to equal the 20% split - meaning our forecast covers January 2021 
+          to March 2023. The model achieved a root mean square error of 43.396, much improved over the simple moving average.
+        </p>
+        <br>
+        <p class="tab"><a href="models/prophet_weekly.html"><strong>Click here to see an interactive version of this plot</strong></a></p>
+      </div>
+      <div class="col-md-6">
+        <img src='models/images/prophet_weekly_forecast.png' alt="Prophet prediction plot">
+      </div>
+    </div>
+    <br><br>
+    <div class="row">
+      <div class="col-md-6">
+        <p class="tab">Prophet also generates additional trend information based on the format of your time series data. Since we used 
+          weekly data, it generated a report showing the trends by month and year.
+        </p>
+        <br>
+        <p class="tab">On a yearly basis you can see that crime incidents had been on a downward trend from mid-2012 until early 2018. Since 
+          then there has been a steady increase. You also see that there is a strong seasonal trend in crime incidents, with January/February 
+          representing the lowest monthly totals and counts peaking in late July/early August.
+        </p>
+        <br>
+        <p class="tab"><a href="models/prophet_trends.html"><strong>Click here to see an interactive version of these trends</strong></a></p>
+      </div>
+      <div class="col-md-6">
+        <img src='models/images/prophet_weekly_trends.png' alt="Prophet trends report">
+      </div>
+    </div>
+    <br><br><br>
+    <div class="row">
+      <div class="col-md-12"><h1>Model Results Summary</h1>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-12">
+        <p class="tab">We used root mean square error as a standardized method to score our models for comparison.</p>
+        <br>
+          <table border="1" class="table table-striped">
+            <thead class="thead-dark">
+              <tr style="text-align: center;">
+                <th>Model</th>
+                <th>Score</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="text-align: center;">
+                <td>SMA 53wk</td>
+                <td>80.695</td>
+              </tr>
+              <tr style="text-align: center;">
+                <td>SMA 52wk</td>
+                <td>62.212</td>
+              </tr>
+              <tr style="text-align: center;">
+                <td>Prophet</td>
+                <td>43.396</td>
+              </tr>
+            </tbody>
+          </table>  
+        <br>
+        <p class="tab">Prophet scored the best of all the models with a RMSE score of 43.396. </p>
+        <br><br>
+        <p class="tab">We also compared our predictions for 2021 using each model to the actual weekly counts so far (through March 14, 2021, accessed <a href="https://www.minneapolismn.gov/resident-services/public-safety/police-public-safety/crime-maps-dashboards/crime-dashboard/">here</a>). 
+          Both models predicted lower than actual in January but have improved since. Some of this could be due to the uptick in auto thefts that 
+          has been occuring over the past several months or the impact of weather events. 
+        </p>
+        <br>
+        <p class="tab">While these time-series models may not accurately predict future crime incident counts to the precision that may be required for policy or staffing changes, 
+          they may still be useful for identifying trends, within neighborhoods or by offense, that could be impacted through public outreach and awareness during key times of year.
+        </p>
+        <br><br>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-12">
+        <table border="1" class="table table-striped">
+          <thead class="thead-dark">
+            <tr style="text-align: center;">
+              <th>Week Number</th>
+              <th>Actual Incidents</th>
+              <th>SMA Prediction</th>
+              <th>SMA Variance</th>
+              <th>Prophet Prediction</th>
+              <th>Prophet Variance</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="text-align: center;">
+              <td>1</td>
+              <td>402</td>
+              <td>371</td>
+              <td>-31</td>
+              <td>326</td>
+              <td>-76</td>
+            </tr>
+            <tr style="text-align: center;">
+              <td>2</td>
+              <td>387</td>
+              <td>372</td>
+              <td>-15</td>
+              <td>330</td>
+              <td>-57</td>
+            </tr>
+            <tr style="text-align: center;">
+              <td>3</td>
+              <td>398</td>
+              <td>367</td>
+              <td>-31</td>
+              <td>328</td>
+              <td>-70</td>
+            </tr>
+            <tr style="text-align: center;">
+              <td>4</td>
+              <td>413</td>
+              <td>370</td>
+              <td>-43</td>
+              <td>315</td>
+              <td>-98</td>
+            </tr>
+            <tr style="text-align: center;">
+              <td>5</td>
+              <td>387</td>
+              <td>383</td>
+              <td>-4</td>
+              <td>300</td>
+              <td>-87</td>
+            </tr>
+            <tr style="text-align: center;">
+              <td>6</td>
+              <td>375</td>
+              <td>374</td>
+              <td>-1</td>
+              <td>296</td>
+              <td>-79</td>
+            </tr>
+            <tr style="text-align: center;">
+              <td>7</td>
+              <td>387</td>
+              <td>381</td>
+              <td>-6</td>
+              <td>306</td>
+              <td>-81</td>
+            </tr>
+            <tr style="text-align: center;">
+              <td>8</td>
+              <td>358</td>
+              <td>370</td>
+              <td>12</td>
+              <td>322</td>
+              <td>-36</td>
+            </tr>
+            <tr style="text-align: center;">
+              <td>9</td>
+              <td>332</td>
+              <td>357</td>
+              <td>25</td>
+              <td>335</td>
+              <td>3</td>
+            </tr>
+            <tr style="text-align: center;">
+              <td>10</td>
+              <td>249</td>
+              <td>361</td>
+              <td>112</td>
+              <td>341</td>
+              <td>92</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-12">
+          <hr color="#010101">
+          <p>See the code on <a href="https://github.com/MrBadinger/Minority_Report/tree/main/models">GitHub</a></p>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-12"></div>
+      </div>
+    </div>
+  </div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/5.5.0/d3.js"></script>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/5.5.0/d3.js"></script>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+  <script src="./static/js/map_ed.js"></script>
+  
+</body>
+
+</html>
